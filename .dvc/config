@@ -1,0 +1,5 @@
+[core]
+    remote = myremote
+['remote "myremote"']
+    url = s3://mlops-lab-dongocbich-20260821/dvc
+    region = us-east-1

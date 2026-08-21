@@ -5,6 +5,10 @@ outputs/
 data/train_phase1.csv
 data/eval.csv
 data/train_phase2.csv
+*.csv
+*.pem
+s3-policy.json
+trust-policy.json
 sa-key.json
 .env
 .venv/
