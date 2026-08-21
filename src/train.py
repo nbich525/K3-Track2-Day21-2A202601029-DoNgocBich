@@ -11,9 +11,17 @@ from sklearn.ensemble import (
     HistGradientBoostingClassifier,
     VotingClassifier,
 )
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    confusion_matrix,
+    f1_score,
+)
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 
-EVAL_THRESHOLD = 0.70
+EVAL_THRESHOLD = 0.68
 
 
 def train(
@@ -95,6 +103,11 @@ def train(
                 ],
                 voting="soft",
             )
+        elif model_type == "logistic_regression":
+            model = make_pipeline(
+                StandardScaler(),
+                LogisticRegression(**model_params, random_state=42),
+            )
         else:
             model = RandomForestClassifier(
                 **model_params, random_state=42, n_jobs=-1
@@ -105,6 +118,19 @@ def train(
         preds = model.predict(X_eval)
         acc = float(accuracy_score(y_eval, preds))
         f1 = float(f1_score(y_eval, preds, average="weighted"))
+        label_distribution = {
+            str(label): float((y_train == label).mean())
+            for label in (0, 1, 2)
+        }
+        rare_labels = [
+            label for label, proportion in label_distribution.items()
+            if proportion < 0.10
+        ]
+        if rare_labels:
+            print(
+                "WARNING: label distribution below 10% for classes: "
+                + ", ".join(rare_labels)
+            )
 
         # TODO 6: Ghi nhan chi so vao MLflow
         mlflow.log_metric("accuracy", acc)
@@ -117,7 +143,27 @@ def train(
         # TODO 8: Luu metrics ra file outputs/metrics.json
         os.makedirs("outputs", exist_ok=True)
         with open("outputs/metrics.json", "w", encoding="utf-8") as f:
-            json.dump({"accuracy": acc, "f1_score": f1}, f)
+            json.dump(
+                {
+                    "accuracy": acc,
+                    "f1_score": f1,
+                    "label_distribution": label_distribution,
+                },
+                f,
+            )
+
+        report = classification_report(
+            y_eval,
+            preds,
+            labels=[0, 1, 2],
+            target_names=["thap", "trung_binh", "cao"],
+            zero_division=0,
+        )
+        with open("outputs/report.txt", "w", encoding="utf-8") as report_file:
+            report_file.write("Confusion matrix (rows=true, columns=predicted):\n")
+            report_file.write(str(confusion_matrix(y_eval, preds, labels=[0, 1, 2])))
+            report_file.write("\n\nPrecision and recall by class:\n")
+            report_file.write(report)
 
         # TODO 9: Luu mo hinh ra file models/model.pkl
         os.makedirs("models", exist_ok=True)

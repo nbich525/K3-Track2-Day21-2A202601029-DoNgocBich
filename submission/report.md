@@ -2,6 +2,8 @@
 
 **Cloud:** AWS S3 + EC2
 
+**Bonus đã triển khai trong mã nguồn:** Bonus 1 (MLflow remote tùy chọn), Bonus 2 (nhiều thuật toán), Bonus 3 (báo cáo hiệu suất), Bonus 4 (rollback theo accuracy), Bonus 5 (phân phối nhãn). Cần chạy lại pipeline sau commit này để tạo bằng chứng artifact mới.
+
 ## 1. Bằng chứng
 
 Ảnh được đặt trong `submission/Screenshot/` theo đúng thứ tự:
@@ -21,6 +23,7 @@
 Ba cấu hình đã được so sánh trên MLflow. Cấu hình được chọn là:
 
 ```yaml
+model_type: random_forest
 n_estimators: 300
 max_depth: null
 min_samples_split: 2
@@ -44,6 +47,14 @@ Dữ liệu bổ sung đã cải thiện accuracy từ 0.6820 lên 0.7460 (+0.06
 - Private key SSH cần quyền file riêng trên Windows; xử lý bằng `icacls`.
 - GitHub Actions chỉ deploy sau khi Eval pass; systemd service phải được tạo trước trên EC2.
 
-## 4. Kết luận
+## 4. Các bonus đã triển khai
+
+- **Bonus 1:** Workflow hỗ trợ MLflow remote khi khai báo `MLFLOW_TRACKING_URI`, `MLFLOW_TRACKING_USERNAME` và `MLFLOW_TRACKING_PASSWORD` trong GitHub Secrets; nếu không khai báo, pipeline vẫn chạy bình thường.
+- **Bonus 2:** `src/train.py` hỗ trợ `random_forest`, `gradient_boosting`, `hist_gradient_boosting`, `voting_ensemble` và `logistic_regression`; `model_type` được log vào MLflow.
+- **Bonus 3:** Mỗi lần train tạo `outputs/report.txt` gồm confusion matrix, precision và recall theo từng lớp; workflow upload artifact `performance-report`.
+- **Bonus 4:** Workflow tải metrics model hiện hành từ S3, so sánh accuracy trước khi upload model mới và dừng promote nếu model mới kém hơn.
+- **Bonus 5:** `outputs/metrics.json` ghi phân phối nhãn và log cảnh báo nếu lớp nào chiếm dưới 10% tập huấn luyện.
+
+## 5. Kết luận
 
 Pipeline đã gồm MLflow tracking, DVC/S3 versioning, GitHub Actions với Test -> Train -> Eval -> Deploy và FastAPI trên EC2. Commit dữ liệu mới cập nhật con trỏ DVC, đẩy object lên S3 trước, sau đó kích hoạt lại pipeline để huấn luyện và deploy model mới.

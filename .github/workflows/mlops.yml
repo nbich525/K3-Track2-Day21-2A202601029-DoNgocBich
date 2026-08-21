@@ -57,6 +57,21 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Configure remote MLflow (optional)
+        run: |
+          if [ -n "$MLFLOW_REMOTE_URI" ]; then
+            echo "MLFLOW_TRACKING_URI=$MLFLOW_REMOTE_URI" >> "$GITHUB_ENV"
+            echo "MLFLOW_TRACKING_USERNAME=$MLFLOW_REMOTE_USERNAME" >> "$GITHUB_ENV"
+            echo "MLFLOW_TRACKING_PASSWORD=$MLFLOW_REMOTE_PASSWORD" >> "$GITHUB_ENV"
+            echo "Remote MLflow enabled."
+          else
+            echo "Remote MLflow not configured; using local tracking."
+          fi
+        env:
+          MLFLOW_REMOTE_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MLFLOW_REMOTE_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_REMOTE_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+
       - name: Authenticate to Cloud Storage
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -67,8 +82,36 @@ jobs:
       - name: Pull data with DVC
         run: dvc pull data/train_phase1.csv.dvc data/eval.csv.dvc
 
+      - name: Download current metrics for rollback check
+        run: |
+          mkdir -p outputs
+          aws s3 cp "s3://${{ secrets.CLOUD_BUCKET }}/models/latest/metrics.json" outputs/previous_metrics.json || true
+
       - name: Train model
         run: python src/train.py
+
+      - name: Compare with current model
+        run: |
+          python - <<'EOF'
+          import json
+          from pathlib import Path
+
+          previous_path = Path("outputs/previous_metrics.json")
+          current = json.loads(Path("outputs/metrics.json").read_text())
+          if previous_path.exists():
+            previous = json.loads(previous_path.read_text())
+            if current["accuracy"] < previous["accuracy"]:
+              raise SystemExit(
+                f"ROLLBACK: new accuracy {current['accuracy']:.4f} "
+                f"< current accuracy {previous['accuracy']:.4f}"
+              )
+            print(
+              f"PROMOTE: new accuracy {current['accuracy']:.4f} >= "
+              f"current accuracy {previous['accuracy']:.4f}"
+            )
+          else:
+            print("PROMOTE: no current metrics found; first model deployment")
+          EOF
 
       - name: Read metrics
         id: read_metrics
@@ -87,6 +130,11 @@ jobs:
               os.environ["CLOUD_BUCKET"],
               "models/latest/model.pkl",
           )
+            boto3.client("s3").upload_file(
+              "outputs/metrics.json",
+              os.environ["CLOUD_BUCKET"],
+              "models/latest/metrics.json",
+            )
           print("Model uploaded to S3.")
           EOF
         env:
@@ -97,6 +145,12 @@ jobs:
         with:
           name: metrics
           path: outputs/metrics.json
+
+      - name: Save performance report as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-report
+          path: outputs/report.txt
 
 
   # ---------------------------------------------------------------------------
