@@ -49,7 +49,7 @@ Bước 1 chỉ chạy trên máy tính cá nhân. Bước 2 và Bước 3 sử 
 
 Phần mềm cần cài đặt trên máy tính cá nhân:
 
-- Python 3.10 trở lên
+- Python 3.10 trở lên (`python` phải có trên PATH; Windows không bắt buộc `py.exe`)
 - Git và tài khoản GitHub (tạo một repo public mới, chưa có nội dung)
 - Tài khoản cloud (chọn một trong ba: GCP, AWS, hoặc Azure — gói miễn phí/trial đủ dùng cho lab này)
 - CLI của cloud provider đã chọn (xem hướng dẫn cài đặt chi tiết tại tasks/buoc-2.md)
@@ -190,21 +190,21 @@ sa-key.json
 __pycache__/
 ```
 
-### `requirements.txt`
+### `requirements.txt` (AWS)
 
 ```
-mlflow==2.13.0
-scikit-learn==1.4.2
-pandas==2.2.2
+mlflow==2.18.0
+scikit-learn==1.6.1
+pandas==2.2.3
 # DVC extra theo provider: [gs]=GCP, [s3]=AWS, [azure]=Azure
-dvc[gs]==3.50.1
-pathspec==0.11.2
+dvc[s3]==3.50.1
+pathspec==0.12.1
 pytest==8.2.0
 fastapi==0.111.0
 uvicorn==0.29.0
 joblib==1.4.2
-# Cloud SDK theo provider: google-cloud-storage (GCP), boto3 (AWS), azure-storage-blob (Azure)
-google-cloud-storage==2.16.0
+# Cloud SDK AWS
+boto3==1.34.100
 pyyaml==6.0.1
 ```
 
@@ -219,6 +219,8 @@ pyyaml==6.0.1
 | 3 | Huấn luyện liên tục khi có dữ liệu mới | tasks/buoc-3.md |
 
 Bắt đầu từ [Bước 1](tasks/buoc-1.md).
+
+Nếu dùng AWS trên Windows 11, thực hiện theo [hướng dẫn PowerShell end-to-end](tasks/aws-windows.md). Tài liệu này đã chuyển toàn bộ lệnh `bash` sang PowerShell và dùng S3, IAM, EC2, DVC, MLflow và GitHub Actions.
 
 ---
 
